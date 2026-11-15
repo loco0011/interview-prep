@@ -599,6 +599,14 @@ button { font: inherit; color: inherit; cursor: pointer; }
   html { scroll-behavior: auto; }
 }
 
+/* ---------- auto-hide bars while reading (scroll down hides, scroll up shows) ---------- */
+.topbar, .toolbar { transition: transform .35s cubic-bezier(.4, 0, .2, 1), opacity .3s ease; will-change: transform; }
+.toc { transition: top .35s cubic-bezier(.4, 0, .2, 1); }
+body.bars-hidden .topbar { transform: translateY(calc(-100% - env(safe-area-inset-top, 0px))); opacity: 0; pointer-events: none; }
+body.bars-hidden .toolbar { transform: translateY(calc(-100% - var(--header-h) - env(safe-area-inset-top, 0px))); opacity: 0; pointer-events: none; }
+body.bars-hidden .toc { top: 24px; max-height: calc(100vh - 48px); }
+@media (prefers-reduced-motion: reduce) { .topbar, .toolbar, .toc { transition: none; } }
+
 </style>
 
 <div class="backdrop" aria-hidden="true"><span class="glow g1"></span><span class="glow g2"></span><span class="glow g3"></span></div>
@@ -1230,9 +1238,22 @@ window.PLAYBOOK = {"built":"2026-11-15","topics":[{"id":"nodejs","title":"Node.j
       const h = document.documentElement.scrollHeight - window.innerHeight;
       readBar.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + '%';
       toTop.hidden = window.scrollY < 700;
+      updateBars();
       ticking = false;
     });
   }, { passive: true });
+  /* auto-hide nav + filter bar: hide when scrolling down to read, show on scroll up */
+  let lastY = window.scrollY;
+  function updateBars() {
+    const y = window.scrollY;
+    const dy = y - lastY;
+    const typing = document.activeElement && document.activeElement.tagName === 'INPUT';
+    if (y < 140 || typing) document.body.classList.remove('bars-hidden');
+    else if (dy > 8) document.body.classList.add('bars-hidden');
+    else if (dy < -8) document.body.classList.remove('bars-hidden');
+    if (Math.abs(dy) > 8 || y < 140) lastY = y;
+  }
+  document.addEventListener('focusin', (e) => { if (e.target.closest('.topbar, .toolbar')) document.body.classList.remove('bars-hidden'); });
   toTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
   /* ---------------- boot ---------------- */

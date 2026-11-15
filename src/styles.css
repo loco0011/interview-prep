@@ -591,3 +591,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
   html { scroll-behavior: auto; }
 }
+
+/* ---------- auto-hide bars while reading (scroll down hides, scroll up shows) ---------- */
+.topbar, .toolbar { transition: transform .35s cubic-bezier(.4, 0, .2, 1), opacity .3s ease; will-change: transform; }
+.toc { transition: top .35s cubic-bezier(.4, 0, .2, 1); }
+body.bars-hidden .topbar { transform: translateY(calc(-100% - env(safe-area-inset-top, 0px))); opacity: 0; pointer-events: none; }
+body.bars-hidden .toolbar { transform: translateY(calc(-100% - var(--header-h) - env(safe-area-inset-top, 0px))); opacity: 0; pointer-events: none; }
+body.bars-hidden .toc { top: 24px; max-height: calc(100vh - 48px); }
+@media (prefers-reduced-motion: reduce) { .topbar, .toolbar, .toc { transition: none; } }
