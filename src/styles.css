@@ -595,10 +595,34 @@ button { font: inherit; color: inherit; cursor: pointer; }
   html { scroll-behavior: auto; }
 }
 
-/* ---------- auto-hide bars while reading (scroll down hides, scroll up shows) ---------- */
-.topbar, .toolbar { transition: transform .35s cubic-bezier(.4, 0, .2, 1), opacity .3s ease; will-change: transform; }
-.toc { transition: top .35s cubic-bezier(.4, 0, .2, 1); }
-body.bars-hidden .topbar { transform: translateY(calc(-100% - env(safe-area-inset-top, 0px))); opacity: 0; pointer-events: none; }
-body.bars-hidden .toolbar { transform: translateY(calc(-100% - var(--header-h) - env(safe-area-inset-top, 0px))); opacity: 0; pointer-events: none; }
-body.bars-hidden .toc { top: 24px; max-height: calc(100vh - 48px); }
-@media (prefers-reduced-motion: reduce) { .topbar, .toolbar, .toc { transition: none; } }
+/* ---------- hamburger: show / hide the topic tabs + filter bar ---------- */
+.menu-btn { position: relative; }
+.menu-btn:hover { transform: scale(1.05); }
+.menu-btn .bars, .menu-btn .bars::before, .menu-btn .bars::after {
+  position: absolute; left: 50%; top: 50%; width: 18px; height: 2px; margin: -1px 0 0 -9px;
+  border-radius: 2px; background: currentColor; content: "";
+  transition: transform .35s cubic-bezier(.2, .8, .2, 1), opacity .2s;
+}
+.menu-btn .bars::before { transform: translateY(-6px); }
+.menu-btn .bars::after { transform: translateY(6px); }
+.menu-btn .bars { background: transparent; }
+.menu-btn .bars::before, .menu-btn .bars::after { left: 0; margin: 0; top: 0; }
+.menu-btn .mid { position: absolute; left: 50%; top: 50%; width: 18px; height: 2px; margin: -1px 0 0 -9px; border-radius: 2px; background: currentColor; transition: opacity .2s, transform .35s; }
+body.menu-open .menu-btn { background: var(--indigo); }
+body.menu-open .menu-btn .bars::before { transform: rotate(45deg); }
+body.menu-open .menu-btn .bars::after { transform: rotate(-45deg); }
+body.menu-open .menu-btn .mid { opacity: 0; transform: scaleX(.2); }
+
+.tabs, .toolbar { transition: max-height .4s cubic-bezier(.2, .8, .2, 1), opacity .3s, margin .4s cubic-bezier(.2, .8, .2, 1), padding .4s cubic-bezier(.2, .8, .2, 1), visibility 0s; max-height: 420px; }
+body:not(.menu-open) .tabs { max-height: 0; opacity: 0; margin-top: -8px; padding-block: 0; border-color: transparent; box-shadow: none; overflow: hidden; visibility: hidden; transition-property: max-height, opacity, margin, padding, visibility; transition-delay: 0s, 0s, 0s, 0s, .4s; }
+body:not(.menu-open) .toolbar { max-height: 0; opacity: 0; padding-block: 0; overflow: hidden; visibility: hidden; transition-delay: 0s, 0s, 0s, 0s, .4s; }
+body:not(.menu-open) .toc { top: calc(var(--header-h) + 16px); }
+@media (max-width: 640px) {
+  /* on phones the open menu shows every topic at once instead of a sideways strip */
+  body.menu-open .tabs { border-radius: 26px; }
+  .tabs-track { flex-wrap: wrap; gap: 4px; overflow: visible; }
+  .tab-ind { display: none; }
+  .tab[aria-selected="true"] { background: var(--indigo); box-shadow: 0 6px 16px -6px rgba(55, 48, 163, .8); }
+  .tab { padding: 7px 12px; font-size: .86rem; }
+}
+@media (prefers-reduced-motion: reduce) { .tabs, .toolbar, .menu-btn .bars::before, .menu-btn .bars::after { transition: none; } }

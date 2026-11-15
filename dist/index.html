@@ -606,13 +606,37 @@ button { font: inherit; color: inherit; cursor: pointer; }
   html { scroll-behavior: auto; }
 }
 
-/* ---------- auto-hide bars while reading (scroll down hides, scroll up shows) ---------- */
-.topbar, .toolbar { transition: transform .35s cubic-bezier(.4, 0, .2, 1), opacity .3s ease; will-change: transform; }
-.toc { transition: top .35s cubic-bezier(.4, 0, .2, 1); }
-body.bars-hidden .topbar { transform: translateY(calc(-100% - env(safe-area-inset-top, 0px))); opacity: 0; pointer-events: none; }
-body.bars-hidden .toolbar { transform: translateY(calc(-100% - var(--header-h) - env(safe-area-inset-top, 0px))); opacity: 0; pointer-events: none; }
-body.bars-hidden .toc { top: 24px; max-height: calc(100vh - 48px); }
-@media (prefers-reduced-motion: reduce) { .topbar, .toolbar, .toc { transition: none; } }
+/* ---------- hamburger: show / hide the topic tabs + filter bar ---------- */
+.menu-btn { position: relative; }
+.menu-btn:hover { transform: scale(1.05); }
+.menu-btn .bars, .menu-btn .bars::before, .menu-btn .bars::after {
+  position: absolute; left: 50%; top: 50%; width: 18px; height: 2px; margin: -1px 0 0 -9px;
+  border-radius: 2px; background: currentColor; content: "";
+  transition: transform .35s cubic-bezier(.2, .8, .2, 1), opacity .2s;
+}
+.menu-btn .bars::before { transform: translateY(-6px); }
+.menu-btn .bars::after { transform: translateY(6px); }
+.menu-btn .bars { background: transparent; }
+.menu-btn .bars::before, .menu-btn .bars::after { left: 0; margin: 0; top: 0; }
+.menu-btn .mid { position: absolute; left: 50%; top: 50%; width: 18px; height: 2px; margin: -1px 0 0 -9px; border-radius: 2px; background: currentColor; transition: opacity .2s, transform .35s; }
+body.menu-open .menu-btn { background: var(--indigo); }
+body.menu-open .menu-btn .bars::before { transform: rotate(45deg); }
+body.menu-open .menu-btn .bars::after { transform: rotate(-45deg); }
+body.menu-open .menu-btn .mid { opacity: 0; transform: scaleX(.2); }
+
+.tabs, .toolbar { transition: max-height .4s cubic-bezier(.2, .8, .2, 1), opacity .3s, margin .4s cubic-bezier(.2, .8, .2, 1), padding .4s cubic-bezier(.2, .8, .2, 1), visibility 0s; max-height: 420px; }
+body:not(.menu-open) .tabs { max-height: 0; opacity: 0; margin-top: -8px; padding-block: 0; border-color: transparent; box-shadow: none; overflow: hidden; visibility: hidden; transition-property: max-height, opacity, margin, padding, visibility; transition-delay: 0s, 0s, 0s, 0s, .4s; }
+body:not(.menu-open) .toolbar { max-height: 0; opacity: 0; padding-block: 0; overflow: hidden; visibility: hidden; transition-delay: 0s, 0s, 0s, 0s, .4s; }
+body:not(.menu-open) .toc { top: calc(var(--header-h) + 16px); }
+@media (max-width: 640px) {
+  /* on phones the open menu shows every topic at once instead of a sideways strip */
+  body.menu-open .tabs { border-radius: 26px; }
+  .tabs-track { flex-wrap: wrap; gap: 4px; overflow: visible; }
+  .tab-ind { display: none; }
+  .tab[aria-selected="true"] { background: var(--indigo); box-shadow: 0 6px 16px -6px rgba(55, 48, 163, .8); }
+  .tab { padding: 7px 12px; font-size: .86rem; }
+}
+@media (prefers-reduced-motion: reduce) { .tabs, .toolbar, .menu-btn .bars::before, .menu-btn .bars::after { transition: none; } }
 
 </style>
 
@@ -638,6 +662,7 @@ body.bars-hidden .toc { top: 24px; max-height: calc(100vh - 48px); }
         <svg class="i-light" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         <svg class="i-dark" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
       </button>
+      <button class="icon-btn menu-btn" id="menuBtn" type="button" aria-label="Show topics and filters" aria-expanded="false" aria-controls="tabs"><span class="bars"></span><span class="mid"></span></button>
     </div>
     <nav class="tabs glass" aria-label="Topics">
       <div class="tabs-track" id="tabs" role="tablist"></div>
@@ -1245,23 +1270,31 @@ window.PLAYBOOK = {"built":"2026-11-15","topics":[{"id":"nodejs","title":"Node.j
       const h = document.documentElement.scrollHeight - window.innerHeight;
       readBar.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + '%';
       toTop.hidden = window.scrollY < 700;
-      updateBars();
       ticking = false;
     });
   }, { passive: true });
-  /* auto-hide nav + filter bar: hide when scrolling down to read, show on scroll up */
-  let lastY = window.scrollY;
-  function updateBars() {
-    const y = window.scrollY;
-    const dy = y - lastY;
-    const typing = document.activeElement && document.activeElement.tagName === 'INPUT';
-    if (y < 140 || typing) document.body.classList.remove('bars-hidden');
-    else if (dy > 8) document.body.classList.add('bars-hidden');
-    else if (dy < -8) document.body.classList.remove('bars-hidden');
-    if (Math.abs(dy) > 8 || y < 140) lastY = y;
-  }
-  document.addEventListener('focusin', (e) => { if (e.target.closest('.topbar, .toolbar')) document.body.classList.remove('bars-hidden'); });
   toTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+  /* ---------------- hamburger: topic tabs + filter bar ---------------- */
+  const menuBtn = $('#menuBtn');
+  const isPhone = () => window.matchMedia('(max-width: 640px)').matches;
+  function setMenu(open, remember) {
+    document.body.classList.toggle('menu-open', open);
+    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    menuBtn.setAttribute('aria-label', open ? 'Hide topics and filters' : 'Show topics and filters');
+    if (remember) store.set('menu', open ? '1' : '0');
+    if (open) {
+      const a = $('.tab[aria-selected="true"]', tabsEl);
+      requestAnimationFrame(() => markTab(a ? a.dataset.route : '__none'));
+    }
+  }
+  menuBtn.addEventListener('click', () => setMenu(!document.body.classList.contains('menu-open'), true));
+  /* on phones the menu closes itself after you pick a topic */
+  tabsEl.addEventListener('click', (e) => { if (e.target.closest('.tab') && isPhone()) setMenu(false, false); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('menu-open') && document.activeElement !== searchInput) setMenu(false, true);
+  });
+  setMenu(!isPhone() && store.get('menu') === '1', false);
 
   /* ---------------- boot ---------------- */
   $('#qTotal').textContent = TOTAL;

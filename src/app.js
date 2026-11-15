@@ -577,23 +577,31 @@
       const h = document.documentElement.scrollHeight - window.innerHeight;
       readBar.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + '%';
       toTop.hidden = window.scrollY < 700;
-      updateBars();
       ticking = false;
     });
   }, { passive: true });
-  /* auto-hide nav + filter bar: hide when scrolling down to read, show on scroll up */
-  let lastY = window.scrollY;
-  function updateBars() {
-    const y = window.scrollY;
-    const dy = y - lastY;
-    const typing = document.activeElement && document.activeElement.tagName === 'INPUT';
-    if (y < 140 || typing) document.body.classList.remove('bars-hidden');
-    else if (dy > 8) document.body.classList.add('bars-hidden');
-    else if (dy < -8) document.body.classList.remove('bars-hidden');
-    if (Math.abs(dy) > 8 || y < 140) lastY = y;
-  }
-  document.addEventListener('focusin', (e) => { if (e.target.closest('.topbar, .toolbar')) document.body.classList.remove('bars-hidden'); });
   toTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+  /* ---------------- hamburger: topic tabs + filter bar ---------------- */
+  const menuBtn = $('#menuBtn');
+  const isPhone = () => window.matchMedia('(max-width: 640px)').matches;
+  function setMenu(open, remember) {
+    document.body.classList.toggle('menu-open', open);
+    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    menuBtn.setAttribute('aria-label', open ? 'Hide topics and filters' : 'Show topics and filters');
+    if (remember) store.set('menu', open ? '1' : '0');
+    if (open) {
+      const a = $('.tab[aria-selected="true"]', tabsEl);
+      requestAnimationFrame(() => markTab(a ? a.dataset.route : '__none'));
+    }
+  }
+  menuBtn.addEventListener('click', () => setMenu(!document.body.classList.contains('menu-open'), true));
+  /* on phones the menu closes itself after you pick a topic */
+  tabsEl.addEventListener('click', (e) => { if (e.target.closest('.tab') && isPhone()) setMenu(false, false); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('menu-open') && document.activeElement !== searchInput) setMenu(false, true);
+  });
+  setMenu(!isPhone() && store.get('menu') === '1', false);
 
   /* ---------------- boot ---------------- */
   $('#qTotal').textContent = TOTAL;
