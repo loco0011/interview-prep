@@ -580,9 +580,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .topbar-inner { padding-left: 14px; gap: 8px; }
   .brand-text { display: none; }
   .search-kbd { display: none; }
-  .toolbar-inner { border-radius: 24px; gap: 6px; }
+  .toolbar { padding-block: 6px; }
+  .toolbar-inner { flex-wrap: nowrap; overflow-x: auto; gap: 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .toolbar-inner::-webkit-scrollbar { display: none; }
+  .toolbar-inner > * { flex: none; }
   .toolbar .spacer { display: none; }
-  .showing { width: 100%; order: 10; text-align: center; padding: 0 0 4px; }
+  .showing { padding: 0 10px 0 4px; white-space: nowrap; }
   .qa, .qa-head { border-radius: 24px; }
   .qa-head { grid-template-columns: minmax(0, 1fr) auto; padding: 14px; gap: 10px; }
   .qa-num { grid-row: 1; grid-column: 1; justify-self: start; }
