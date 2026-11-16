@@ -77,7 +77,8 @@
   /* ---------------- tabs ---------------- */
   const tabsEl = $('#tabs');
   function renderTabs() {
-    const home = `<button class="tab" role="tab" data-route="home" style="--c:var(--brand)">Overview</button>`;
+    const home = `<button class="tab" role="tab" data-route="home" style="--c:var(--brand)">Overview</button>` +
+      `<button class="tab tab-prep" role="tab" data-route="prep">Prep sheet</button>`;
     tabsEl.innerHTML =
       home +
       TOPICS.map(
@@ -139,6 +140,7 @@
   function parseHash() {
     const h = decodeURIComponent(location.hash.slice(1));
     if (!h || h === 'home') return { name: 'home' };
+    if (h === 'prep') return { name: 'prep' };
     if (byId[h]) return { name: 'topic', topic: byId[h] };
     if (QINDEX[h]) return { name: 'topic', topic: QINDEX[h].topic, open: h };
     return { name: 'home' };
@@ -146,6 +148,7 @@
   function route() {
     const r = parseHash();
     if (r.name === 'home') renderHome();
+    else if (r.name === 'prep') renderPrep();
     else {
       const same = current.name === 'topic' && current.topic === r.topic;
       if (!same) renderTopic(r.topic);
@@ -173,6 +176,7 @@
             <div class="stat"><b>${pct(done, TOTAL)}%</b><span>learned</span></div>
           </div>
           <div class="home-actions">
+            <a class="btn sm" href="#prep">Quick prep sheet</a>
             <button class="btn dark sm" type="button" id="randomAll"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M7 5v14l11-7z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>Random question</button>
             ${last ? `<a class="btn primary sm" href="#${last.id}">Continue with ${escHtml(last.short)} →</a>` : `<a class="btn primary sm" href="#${TOPICS[0].id}">Start with ${escHtml(TOPICS[0].short)} →</a>`}
           </div>
@@ -464,6 +468,8 @@
     if (now && !done) chips.insertAdjacentHTML('beforeend', '<span class="chip done">Learned</span>');
     if (!now && done) done.remove();
     if (current.name === 'topic') updateRing(current.topic);
+    const sd = $('#sheetDone');
+    if (sd && prepSheet) sd.textContent = prepSheet.ids.filter((x) => learned.has(x)).length;
     toast(now ? 'Marked as learned' : 'Moved back to revise');
   }
 
@@ -525,7 +531,7 @@
       const a = head.closest('.qa');
       const open = !a.classList.contains('open');
       setOpen(a, open);
-      if (open && history.replaceState) {
+      if (open && current.name !== 'prep' && history.replaceState) {
         try { history.replaceState(null, '', '#' + a.dataset.id); } catch (err) { /* ignore */ }
       }
       return;
@@ -559,6 +565,223 @@
     sel.removeAllRanges();
     sel.addRange(r);
     toast('Selected — press Ctrl+C to copy');
+  }
+
+  /* ---------------- quick prep sheet ---------------- */
+  const LEVELS = ['basic', 'mid', 'senior'];
+  const COUNTS = [10, 20, 30, 50];
+  const FOCUS = { mixed: 'Mixed', first: 'Asked often first', only: 'Asked often only' };
+  const prepForm = Object.assign(
+    { topics: TOPICS.map((t) => t.id), levels: LEVELS.slice(), count: 20, focus: 'first', skipLearned: true, shuffle: false },
+    store.get('prep-form', {})
+  );
+  prepForm.topics = prepForm.topics.filter((id) => byId[id]);
+  let prepSheet = store.get('prep-sheet', null); // { ids, made, form }
+  if (prepSheet) prepSheet.ids = prepSheet.ids.filter((id) => QINDEX[id]);
+
+  const shuffled = (arr) => {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+  function prepPool(f) {
+    const out = [];
+    TOPICS.forEach((t) => {
+      if (!f.topics.includes(t.id)) return;
+      t.sections.forEach((s) => s.qs.forEach((q) => {
+        if (!f.levels.includes(q.level)) return;
+        if (f.skipLearned && learned.has(q.id)) return;
+        if (f.focus === 'only' && !isHot(q)) return;
+        out.push({ q, t });
+      }));
+    });
+    return out;
+  }
+  function makeSheet(f) {
+    const pool = prepPool(f);
+    // shuffle inside each topic (asked-often first if wanted), then take turns across topics so the mix stays balanced
+    const groups = f.topics.map((id) => {
+      let g = shuffled(pool.filter((p) => p.t.id === id));
+      if (f.focus === 'first') g = g.filter((p) => isHot(p.q)).concat(g.filter((p) => !isHot(p.q)));
+      return g;
+    }).filter((g) => g.length);
+    const picked = [];
+    for (let r = 0; picked.length < f.count && groups.some((g) => g.length > r); r++) {
+      groups.forEach((g) => { if (g[r] && picked.length < f.count) picked.push(g[r]); });
+    }
+    const order = TOPICS.map((t) => t.id);
+    if (f.shuffle) return shuffled(picked).map((p) => p.q.id);
+    return picked
+      .sort((a, b) => order.indexOf(a.t.id) - order.indexOf(b.t.id) || a.q.n - b.q.n)
+      .map((p) => p.q.id);
+  }
+
+  const pill = (attrs, label, on, style) =>
+    `<button class="pick" type="button" ${attrs} aria-pressed="${!!on}"${style ? ` style="${style}"` : ''}>${label}</button>`;
+
+  function renderPrep() {
+    current = { name: 'prep' };
+    root.style.removeProperty('--t');
+    markTab('prep');
+    const f = prepForm;
+    view.innerHTML = `
+      <section class="wrap prep-hero">
+        <div class="eyebrow">Quick prep sheet</div>
+        <h1>Build a prep sheet</h1>
+        <p class="muted">Pick topics, difficulty and how many questions. You get a balanced, printable list to revise before the interview.</p>
+      </section>
+      <section class="wrap">
+        <form class="prep-form glass" id="prepForm" onsubmit="return false">
+          <div class="pf-row">
+            <div class="pf-label"><b>Topics</b><span><button type="button" class="link-btn" data-all="1">All</button> · <button type="button" class="link-btn" data-all="0">None</button></span></div>
+            <div class="picks" id="pfTopics">${TOPICS.map((t) => pill(`data-topic="${t.id}"`, `<i class="dot" style="background:${t.color}"></i>${escHtml(t.short)}`, f.topics.includes(t.id))).join('')}</div>
+          </div>
+          <div class="pf-grid">
+            <div class="pf-row">
+              <div class="pf-label"><b>Difficulty</b></div>
+              <div class="picks" id="pfLevels">${LEVELS.map((l) => pill(`data-lv="${l}"`, `<i class="dot lv-${l}"></i>${LEVEL[l]}`, f.levels.includes(l))).join('')}</div>
+            </div>
+            <div class="pf-row">
+              <div class="pf-label"><b>Number of questions</b></div>
+              <div class="picks" id="pfCount">
+                ${COUNTS.map((n) => pill(`data-n="${n}"`, n, f.count === n)).join('')}
+                <label class="pf-num"><span>Custom</span><input type="number" id="pfCustom" min="1" max="${TOTAL}" inputmode="numeric" value="${COUNTS.includes(f.count) ? '' : f.count}" placeholder="—"></label>
+              </div>
+            </div>
+            <div class="pf-row">
+              <div class="pf-label"><b>Focus</b></div>
+              <div class="seg pf-seg" id="pfFocus">${Object.keys(FOCUS).map((k) => `<button type="button" data-focus="${k}" aria-pressed="${f.focus === k}">${FOCUS[k]}</button>`).join('')}</div>
+            </div>
+            <div class="pf-row">
+              <div class="pf-label"><b>Options</b></div>
+              <div class="picks">
+                ${pill('data-opt="skipLearned"', 'Skip learned', f.skipLearned)}
+                ${pill('data-opt="shuffle"', 'Shuffle order', f.shuffle)}
+              </div>
+            </div>
+          </div>
+          <div class="pf-foot">
+            <span class="pf-pool" id="pfPool"></span>
+            <button class="btn primary" type="button" id="pfGo">Generate sheet →</button>
+          </div>
+        </form>
+      </section>
+      <section class="wrap" id="prepOut"></section>`;
+    animateIn();
+    bindPrep();
+    updatePool();
+    renderSheet(false);
+    window.scrollTo(0, 0);
+  }
+
+  function updatePool() {
+    const n = prepPool(prepForm).length;
+    const el = $('#pfPool');
+    const go = $('#pfGo');
+    if (!el) return;
+    const want = Math.min(prepForm.count, n);
+    el.innerHTML = n
+      ? `<b>${n}</b> question${n === 1 ? '' : 's'} match · sheet will have <b>${want}</b>${n < prepForm.count ? ' (fewer than you asked)' : ''}`
+      : '<b>0</b> questions match: pick at least one topic and difficulty';
+    go.disabled = !n;
+  }
+
+  function bindPrep() {
+    const form = $('#prepForm');
+    const save = () => { store.set('prep-form', prepForm); updatePool(); };
+    form.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      const ds = b.dataset;
+      if (ds.all) {
+        prepForm.topics = ds.all === '1' ? TOPICS.map((t) => t.id) : [];
+        $$('[data-topic]', form).forEach((x) => x.setAttribute('aria-pressed', ds.all === '1' ? 'true' : 'false'));
+      } else if (ds.topic || ds.lv) {
+        const key = ds.topic ? 'topics' : 'levels';
+        const v = ds.topic || ds.lv;
+        const on = !prepForm[key].includes(v);
+        prepForm[key] = on ? prepForm[key].concat(v) : prepForm[key].filter((x) => x !== v);
+        if (key === 'topics') prepForm.topics.sort((a, c) => TOPICS.indexOf(byId[a]) - TOPICS.indexOf(byId[c]));
+        b.setAttribute('aria-pressed', String(on));
+      } else if (ds.n) {
+        prepForm.count = +ds.n;
+        $$('[data-n]', form).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        $('#pfCustom').value = '';
+      } else if (ds.focus) {
+        prepForm.focus = ds.focus;
+        $$('[data-focus]', form).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      } else if (ds.opt) {
+        prepForm[ds.opt] = !prepForm[ds.opt];
+        b.setAttribute('aria-pressed', String(prepForm[ds.opt]));
+      } else if (b.id === 'pfGo') {
+        return generate();
+      } else return;
+      save();
+    });
+    $('#pfCustom').addEventListener('input', (e) => {
+      const n = Math.max(1, Math.min(TOTAL, parseInt(e.target.value, 10) || 0));
+      if (!e.target.value) return;
+      prepForm.count = n;
+      $$('[data-n]', form).forEach((x) => x.setAttribute('aria-pressed', String(+x.dataset.n === n)));
+      save();
+    });
+  }
+
+  function generate() {
+    const ids = makeSheet(prepForm);
+    if (!ids.length) return toast('No questions match these choices');
+    prepSheet = { ids, made: new Date().toISOString(), form: JSON.parse(JSON.stringify(prepForm)) };
+    store.set('prep-sheet', prepSheet);
+    renderSheet(true);
+  }
+
+  function renderSheet(scroll) {
+    const out = $('#prepOut');
+    if (!out) return;
+    if (!prepSheet || !prepSheet.ids.length) { out.innerHTML = ''; return; }
+    const f = prepSheet.form;
+    const items = prepSheet.ids.map((id) => QINDEX[id]);
+    const done = items.filter((x) => learned.has(x.q.id)).length;
+    const topicNames = f.topics.length === TOPICS.length ? 'All topics' : f.topics.map((id) => byId[id].short).join(', ');
+    const lvNames = f.levels.length === LEVELS.length ? 'All levels' : f.levels.map((l) => LEVEL[l]).join(' + ');
+    const made = new Date(prepSheet.made);
+    out.innerHTML = `
+      <div class="sheet-head glass">
+        <div class="sheet-title">
+          <h2>Your prep sheet · ${items.length} questions</h2>
+          <div class="sheet-meta">${escHtml(topicNames)} · ${lvNames} · ${FOCUS[f.focus]} · made ${made.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</div>
+          <div class="sheet-meta"><span id="sheetDone">${done}</span> of ${items.length} learned</div>
+        </div>
+        <div class="sheet-actions">
+          <button class="btn sm" type="button" id="shRegen">↻ New set</button>
+          <button class="btn sm" type="button" id="shExpand">Expand all</button>
+          <button class="btn sm" type="button" id="shCopy">Copy list</button>
+          <button class="btn sm dark" type="button" id="shPrint">Print / PDF</button>
+        </div>
+      </div>
+      <div class="sheet-list">
+        ${items.map((x, i) => qCard(Object.assign({}, x.q, { n: i + 1 }), i, x.topic, true)).join('')}
+      </div>
+      <div class="print-only print-title">Interview prep sheet · ${items.length} questions · ${escHtml(topicNames)} · ${lvNames}</div>`;
+    $('#shRegen').addEventListener('click', () => { generate(); toast('New set generated'); });
+    $('#shExpand').addEventListener('click', (e) => {
+      const all = $$('.sheet-list .qa', out);
+      const anyClosed = all.some((a) => !a.classList.contains('open'));
+      all.forEach((a) => setOpen(a, anyClosed));
+      e.currentTarget.textContent = anyClosed ? 'Collapse all' : 'Expand all';
+    });
+    $('#shCopy').addEventListener('click', () => {
+      const text = items.map((x, i) => `${i + 1}. ${x.q.q.replace(/`/g, '')}  [${x.topic.short} · ${LEVEL[x.q.level]}${isHot(x.q) ? ' · asked often' : ''}]`).join('\n');
+      const header = `Interview prep sheet (${items.length} questions)\n${topicNames} · ${lvNames}\n\n`;
+      try {
+        navigator.clipboard.writeText(header + text).then(() => toast('List copied'), () => toast('Copy blocked by the browser'));
+      } catch (err) { toast('Copy blocked by the browser'); }
+    });
+    $('#shPrint').addEventListener('click', () => {
+      // answers that are open get printed with the question; the rest print as a question list
+      try { window.print(); } catch (err) { toast('Printing is not available here'); }
+    });
+    if (scroll) setTimeout(() => out.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
   }
 
   /* ---------------- search ---------------- */

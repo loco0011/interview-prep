@@ -676,3 +676,77 @@ body:not(.menu-open) .toc { top: calc(var(--header-h) + 16px); }
   .qa-tools { top: 14px; right: 56px; }
   .qa-note { padding: 0 14px 14px; }
 }
+
+/* ---------- quick prep sheet ---------- */
+.tab-prep { color: var(--on-glass); }
+.tab-prep::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--yellow); margin-right: 2px; }
+.prep-hero { padding-block: 22px 14px; }
+.prep-hero h1 { font: 600 clamp(1.6rem, 3.6vw, 2.2rem)/1.15 var(--f-display); margin: 10px 0 6px; }
+.prep-hero p { margin: 0; max-width: 64ch; font-size: .94rem; }
+.prep-form { padding: 22px 24px; border-radius: 32px; display: flex; flex-direction: column; gap: 20px; animation: rise .5s cubic-bezier(.2, .8, .2, 1) both; }
+.pf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px 32px; }
+.pf-row { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pf-label { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.pf-label b { font: 700 .74rem var(--f-display); letter-spacing: .1em; text-transform: uppercase; color: var(--on-glass-2); }
+.pf-label span { font-size: .84rem; color: var(--on-glass-3); }
+.link-btn { border: 0; background: none; padding: 0; color: var(--on-glass); font: 600 .84rem var(--f-display); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.picks { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pick {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 6px 14px; border-radius: 999px;
+  border: 1px solid var(--glass-line); background: rgba(255, 255, 255, .1); color: var(--on-glass-2);
+  font: 600 .86rem var(--f-display); font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: background .2s, color .2s, border-color .2s, transform .2s;
+}
+.pick:hover { background: rgba(255, 255, 255, .22); color: var(--on-glass); }
+.pick:active { transform: scale(.96); }
+.pick[aria-pressed="true"] { background: #fff; border-color: #fff; color: var(--black); box-shadow: 0 6px 14px -8px rgba(0, 0, 0, .4); }
+.pick .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.pick[aria-pressed="false"] .dot { opacity: .55; }
+.dot.lv-basic { background: var(--green); }
+.dot.lv-mid { background: var(--sky); }
+.dot.lv-senior { background: var(--indigo); }
+.pf-num { display: inline-flex; align-items: center; gap: 8px; padding: 3px 4px 3px 14px; border-radius: 999px; border: 1px solid var(--glass-line); background: rgba(255, 255, 255, .1); font: 600 .84rem var(--f-display); color: var(--on-glass-2); }
+.pf-num input { width: 64px; border: 0; outline: 0; border-radius: 999px; padding: 6px 10px; background: rgba(255, 255, 255, .9); color: var(--black); font: 600 .86rem var(--f-display); }
+.pf-num:focus-within { box-shadow: 0 0 0 3px rgba(255, 255, 255, .25); }
+.pf-seg { flex-wrap: wrap; align-self: flex-start; }
+.pf-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; border-top: 1px dashed var(--glass-line); }
+.pf-pool { font-size: .9rem; color: var(--on-glass-2); }
+.pf-pool b { color: var(--on-glass); font-variant-numeric: tabular-nums; }
+.btn:disabled { opacity: .5; pointer-events: none; }
+
+#prepOut { scroll-margin-top: calc(var(--header-h) + 12px); padding-bottom: 64px; }
+.sheet-head { margin-top: 26px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 22px; border-radius: 28px; animation: rise .45s cubic-bezier(.2, .8, .2, 1) both; }
+.sheet-title h2 { margin: 0 0 4px; font: 600 1.3rem var(--f-display); }
+.sheet-meta { font-size: .86rem; color: var(--on-glass-2); }
+.sheet-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sheet-list { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; max-width: 980px; }
+.print-only { display: none; }
+@media (max-width: 640px) {
+  .prep-form { padding: 18px; border-radius: 26px; }
+  .sheet-head { border-radius: 24px; padding: 16px; }
+  .sheet-actions .btn { flex: 1 1 auto; justify-content: center; }
+  .pf-foot .btn { width: 100%; justify-content: center; }
+}
+
+/* ---------- print: the prep sheet as a clean paper list ---------- */
+@media print {
+  body { background: #fff !important; color: #111 !important; }
+  .backdrop, .read-progress, .topbar, .site-foot, .fab, .toast, .prep-hero, .prep-form, .sheet-head, .qa-tools, .qa-note, .chev, .qa-foot { display: none !important; }
+  .print-only { display: block; }
+  #prepOut { display: flex; flex-direction: column; padding: 0; }
+  .print-title { order: -1; font: 700 15pt var(--f-display); margin-bottom: 10pt; padding-bottom: 6pt; border-bottom: 1.5pt solid #111; }
+  .wrap { max-width: none; padding: 0; }
+  .sheet-list { max-width: none; gap: 6pt; margin: 0; }
+  .qa { background: none !important; border: 0; border-bottom: .75pt solid #ccc; border-radius: 0; box-shadow: none !important; backdrop-filter: none; break-inside: avoid; animation: none !important; }
+  .qa-head { padding: 6pt 0; grid-template-columns: auto minmax(0, 1fr); }
+  .qa-num { background: #111 !important; color: #fff; }
+  .qa-q { color: #111; }
+  .chip { border: .75pt solid #999; background: none !important; color: #333 !important; }
+  .qa-body { display: none; }
+  .qa.open .qa-body { display: block; }
+  .qa-content { opacity: 1 !important; transform: none !important; background: none; padding: 0 0 8pt; margin: 0; color: #222; }
+  .prose, .prose strong { color: #222; }
+  .code { background: #f4f4f4; border: .75pt solid #ddd; }
+  .code pre { color: #222; white-space: pre-wrap; }
+  .code-bar { display: none; }
+}
