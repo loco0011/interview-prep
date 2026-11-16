@@ -231,8 +231,11 @@ function build() {
   const tpl = fs.readFileSync(path.join(SRC, 'index.html'), 'utf8');
   const css = fs.readFileSync(path.join(SRC, 'styles.css'), 'utf8');
   const js = fs.readFileSync(path.join(SRC, 'app.js'), 'utf8');
+  const iconFile = path.join(__dirname, 'assets', 'favicon.png');
+  const favicon = fs.existsSync(iconFile) ? 'data:image/png;base64,' + fs.readFileSync(iconFile).toString('base64') : '';
 
   const fragment = tpl
+    .replace(/__FAVICON__/g, () => favicon)
     .replace('/*__STYLES__*/', () => css)
     .replace('/*__DATA__*/', () => `window.PLAYBOOK = ${json};`)
     .replace('/*__APP__*/', () => js);
