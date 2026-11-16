@@ -639,3 +639,40 @@ body:not(.menu-open) .toc { top: calc(var(--header-h) + 16px); }
 .tabs-arrow:hover { background: var(--indigo); transform: scale(1.08); }
 .tabs-arrow:active { transform: scale(.94); }
 @media (max-width: 640px) { .tabs-arrow { display: none; } }
+
+/* ---------- per-question star (asked often) + notepad ---------- */
+.qa { position: relative; }
+.qa-head { grid-template-columns: auto minmax(0, 1fr) 74px auto; }
+.qa-head .chev { grid-column: 4; }
+.qa-tools { position: absolute; top: 16px; right: 64px; display: flex; gap: 6px; z-index: 2; }
+.tool-btn {
+  position: relative; width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center; padding: 0;
+  color: var(--on-glass-2); background: rgba(255, 255, 255, .12); border: 1px solid var(--glass-line);
+  transition: background .2s, color .2s, transform .2s;
+}
+.tool-btn:hover { color: var(--on-glass); background: rgba(255, 255, 255, .24); }
+.star-btn svg { fill: transparent; transition: fill .2s; }
+.star-btn[aria-pressed="true"] { color: var(--black); background: var(--yellow); border-color: var(--yellow); }
+.star-btn[aria-pressed="true"] svg { fill: currentColor; }
+.star-btn.pop { animation: starPop .45s cubic-bezier(.2, .8, .2, 1); }
+@keyframes starPop { 40% { transform: scale(1.3) rotate(-12deg); } }
+.note-btn[aria-expanded="true"] { color: #fff; background: var(--indigo); border-color: var(--indigo); }
+.note-btn .dot { position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: none; }
+.note-btn.has-note .dot { display: block; }
+.qa-note { padding: 0 18px 16px; animation: rise .3s cubic-bezier(.2, .8, .2, 1) both; }
+.qa-note textarea {
+  width: 100%; min-height: 96px; resize: vertical; display: block;
+  padding: 12px 14px; border-radius: 18px;
+  border: 1px solid rgba(0, 0, 0, .08); background: #fffbe6; color: #2b2410;
+  font: 500 .93rem/1.55 Inter, system-ui, sans-serif;
+  outline: 0;
+}
+.qa-note textarea:focus { box-shadow: 0 0 0 3px rgba(255, 227, 0, .55); }
+.note-meta { display: flex; justify-content: flex-end; padding: 6px 4px 0; font: 600 .74rem var(--f-display); color: var(--on-glass-2); }
+@media (max-width: 640px) {
+  .qa-head { grid-template-columns: minmax(0, 1fr) auto; }
+  .qa-head .chev { grid-column: 2; }
+  .qa-tools { top: 14px; right: 56px; }
+  .qa-note { padding: 0 14px 14px; }
+}

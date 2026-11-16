@@ -25,7 +25,11 @@
 
   /* ---------------- helpers ---------------- */
   const escHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const hotIn = (t) => t.sections.reduce((n, s) => n + s.qs.filter((q) => q.hot).length, 0);
+  /* your own "asked often" picks (star) override the built-in ones; notes are per question */
+  const starOverride = store.get('starred', {});
+  const notes = store.get('notes', {});
+  const isHot = (q) => (q.id in starOverride ? starOverride[q.id] : !!q.hot);
+  const hotIn = (t) => t.sections.reduce((n, s) => n + s.qs.filter(isHot).length, 0);
   const LEVEL = { basic: 'Basic', mid: 'Mid', senior: 'Senior' };
   const learnedIn = (t) => t.sections.reduce((n, s) => n + s.qs.filter((q) => learned.has(q.id)).length, 0);
   const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
@@ -157,7 +161,7 @@
     root.style.removeProperty('--t');
     markTab('home');
     const done = learned.size;
-    const hot = TOPICS.reduce((n, t) => n + t.sections.reduce((m, s) => m + s.qs.filter((q) => q.hot).length, 0), 0);
+    const hot = TOPICS.reduce((n, t) => n + hotIn(t), 0);
     const last = byId[store.get('last', '')];
     view.innerHTML = `
       <section class="wrap home-top">
@@ -216,21 +220,29 @@
     view.classList.add('enter');
   }
 
+  const STAR_SVG = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 3.2l2.7 5.5 6 .9-4.35 4.25 1.03 6-5.38-2.83-5.38 2.83 1.03-6L3.3 9.6l6-.9z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg>';
+  const NOTE_SVG = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M6 3h9l4 4v14H6z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M9.5 11h6M9.5 14.5h6M9.5 18h3.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg><i class="dot"></i>';
+
   /* ---------------- topic ---------------- */
   function qCard(q, i, topic, showTopic) {
     const isL = learned.has(q.id);
-    return `<article class="qa${isL ? ' learned' : ''}" id="${q.id}" data-id="${q.id}" data-level="${q.level}" data-hot="${q.hot ? 1 : 0}" style="--i:${i}${showTopic ? ';--t:' + topic.color : ''}">
+    return `<article class="qa${isL ? ' learned' : ''}" id="${q.id}" data-id="${q.id}" data-level="${q.level}" data-hot="${isHot(q) ? 1 : 0}" style="--i:${i}${showTopic ? ';--t:' + topic.color : ''}">
       <button class="qa-head" type="button" aria-expanded="false" aria-controls="b-${q.id}">
         <span class="qa-num">Q${q.n}</span>
         <span class="qa-q">${q.qh}</span>
         <span class="qa-chips">
           ${showTopic ? `<span class="chip topic" style="--c:${topic.color}">${escHtml(topic.short)}</span>` : ''}
           <span class="chip ${q.level}">${LEVEL[q.level]}</span>
-          ${q.hot ? '<span class="chip hot">Asked often</span>' : ''}
+          ${isHot(q) ? '<span class="chip hot">Asked often</span>' : ''}
           ${isL ? '<span class="chip done">Learned</span>' : ''}
         </span>
         <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       </button>
+      <div class="qa-tools">
+        <button class="tool-btn star-btn" type="button" aria-pressed="${isHot(q)}" aria-label="Mark as asked often" title="Asked often">${STAR_SVG}</button>
+        <button class="tool-btn note-btn${notes[q.id] ? ' has-note' : ''}" type="button" aria-expanded="false" aria-label="My notes" title="My notes">${NOTE_SVG}</button>
+      </div>
+      <div class="qa-note" hidden></div>
       <div class="qa-body" id="b-${q.id}" role="region"><div class="qa-inner"></div></div>
     </article>`;
   }
@@ -384,7 +396,7 @@
         total++;
         const ok =
           (filters.level === 'all' || a.dataset.level === filters.level) &&
-          (!filters.hot || a.dataset.hot === '1') &&
+          (!filters.hot || a.dataset.hot === '1' || a.classList.contains('open')) &&
           (!filters.hideLearned || !learned.has(a.dataset.id) || a.classList.contains('open'));
         a.hidden = !ok;
         if (ok) vis++;
@@ -455,7 +467,59 @@
     toast(now ? 'Marked as learned' : 'Moved back to revise');
   }
 
+  function toggleStar(article) {
+    const { q } = QINDEX[article.dataset.id];
+    const now = !isHot(q);
+    if (now === !!q.hot) delete starOverride[q.id]; else starOverride[q.id] = now;
+    store.set('starred', starOverride);
+    article.dataset.hot = now ? '1' : '0';
+    const b = $('.star-btn', article);
+    b.setAttribute('aria-pressed', String(now));
+    b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+    const chips = $('.qa-chips', article);
+    const chip = $('.chip.hot', chips);
+    if (now && !chip) {
+      const lv = $('.chip.' + q.level, chips);
+      if (lv) lv.insertAdjacentHTML('afterend', '<span class="chip hot">Asked often</span>');
+      else chips.insertAdjacentHTML('beforeend', '<span class="chip hot">Asked often</span>');
+    }
+    if (!now && chip) chip.remove();
+    toast(now ? 'Added to Asked often' : 'Removed from Asked often');
+  }
+
+  let noteTimer = 0;
+  function toggleNote(article) {
+    const id = article.dataset.id;
+    const box = $('.qa-note', article);
+    const btn = $('.note-btn', article);
+    const open = box.hidden;
+    if (open && !box.firstChild) {
+      box.innerHTML = '<textarea rows="4" placeholder="Your notes for this question: how you would answer, what the interviewer asked, links..."></textarea><div class="note-meta"><span class="note-status">Saved on this device</span></div>';
+      const ta = $('textarea', box);
+      ta.value = notes[id] || '';
+      const status = $('.note-status', box);
+      ta.addEventListener('input', () => {
+        status.textContent = 'Saving...';
+        clearTimeout(noteTimer);
+        noteTimer = setTimeout(() => {
+          const v = ta.value.trim() ? ta.value : '';
+          if (v) notes[id] = v; else delete notes[id];
+          store.set('notes', notes);
+          btn.classList.toggle('has-note', !!v);
+          status.textContent = 'Saved on this device';
+        }, 400);
+      });
+    }
+    box.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+    if (open) $('textarea', box).focus({ preventScroll: true });
+  }
+
   view.addEventListener('click', (e) => {
+    const sb = e.target.closest('.star-btn');
+    if (sb) return toggleStar(sb.closest('.qa'));
+    const nt = e.target.closest('.note-btn');
+    if (nt) return toggleNote(nt.closest('.qa'));
     const head = e.target.closest('.qa-head');
     if (head) {
       const a = head.closest('.qa');
