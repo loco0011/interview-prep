@@ -626,3 +626,16 @@ body:not(.menu-open) .toc { top: calc(var(--header-h) + 16px); }
   .tab { padding: 7px 12px; font-size: .86rem; }
 }
 @media (prefers-reduced-motion: reduce) { .tabs, .toolbar, .menu-btn .bars::before, .menu-btn .bars::after { transition: none; } }
+
+/* ---------- tab strip arrows (scroll the topics sideways) ---------- */
+.tabs { display: flex; align-items: center; gap: 4px; }
+.tabs-track { flex: 1; min-width: 0; scroll-behavior: smooth; }
+.tabs-arrow {
+  flex: none; width: 34px; height: 34px; display: grid; place-items: center;
+  border: 0; border-radius: 999px; background: var(--black); color: #fff;
+  box-shadow: 0 6px 14px -6px rgba(0, 0, 0, .5);
+  transition: transform .2s, background .2s;
+}
+.tabs-arrow:hover { background: var(--indigo); transform: scale(1.08); }
+.tabs-arrow:active { transform: scale(.94); }
+@media (max-width: 640px) { .tabs-arrow { display: none; } }
